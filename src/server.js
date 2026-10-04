@@ -14,10 +14,11 @@ http.createServer(async (req, res) => {
       res.end(JSON.stringify({ ...out, mode: mock ? 'mock' : 'paypal-sandbox' }));
     } catch (e) {
       res.writeHead(500, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: e.message }));
+      res.end(JSON.stringify({ error: 'Reconciliation failed. Check the server log.' }));
+      console.error('reconcile error:', e.message);
     }
     return;
   }
   res.writeHead(200, { 'Content-Type': 'text/html' });
   res.end(page);
-}).listen(port, () => console.log(`Shelter Payout Ledger on http://localhost:${port} (${mock ? 'mock PayPal' : 'PayPal sandbox'})`));
+}).listen(port, '127.0.0.1', () => console.log(`Shelter Payout Ledger on http://localhost:${port} (${mock ? 'mock PayPal' : 'PayPal sandbox'})`));

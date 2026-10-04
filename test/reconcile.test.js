@@ -57,3 +57,8 @@ test('full pipeline against the mock', async () => {
 test('client refuses live PayPal', () => {
   assert.throws(() => new PayPal({ clientId: 'a', secret: 'b', baseUrl: 'https://api-m.paypal.com' }), /sandbox only/);
 });
+
+test('client only talks to sandbox or localhost', () => {
+  assert.throws(() => new PayPal({ clientId: 'a', secret: 'b', baseUrl: 'https://evil.example.com' }), /sandbox only/);
+  assert.doesNotThrow(() => new PayPal({ clientId: 'a', secret: 'b' }));
+});

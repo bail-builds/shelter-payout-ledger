@@ -2,8 +2,10 @@
 // or any compatible base URL (the bundled mock server uses this too).
 export class PayPal {
   constructor({ clientId, secret, baseUrl = 'https://api-m.sandbox.paypal.com' }) {
-    if (baseUrl.includes('api-m.paypal.com') && !baseUrl.includes('sandbox')) {
-      throw new Error('Refusing to run against live PayPal. This project is sandbox only.');
+    const host = new URL(baseUrl).hostname;
+    const allowed = ['api-m.sandbox.paypal.com', 'api.sandbox.paypal.com', '127.0.0.1', 'localhost'];
+    if (!allowed.includes(host)) {
+      throw new Error(`Refusing to talk to ${host}. This project is sandbox only (allowed: ${allowed.join(', ')}).`);
     }
     this.clientId = clientId;
     this.secret = secret;

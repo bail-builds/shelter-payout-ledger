@@ -18,22 +18,23 @@ small{color:var(--mut)}button{background:var(--ink);color:#fff;border:0;border-r
 <header><h1>Shelter Payout Ledger</h1><p class="sub">Donations in, payouts out, shelter receipts checked. <small id="mode"></small></p></header>
 <main><div class="totals" id="totals"></div><div id="rows">Loading...</div><div><button onclick="load()">Re-run reconciliation</button></div></main>
 <script>
+const esc=t=>String(t??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const gbp=n=>'$'+Number(n).toFixed(2);
 async function load(){
   document.getElementById('rows').textContent='Reconciling...';
   const d=await (await fetch('/api/reconcile')).json();
-  if(d.error){document.getElementById('rows').textContent=d.error;return}
-  document.getElementById('mode').textContent='Data source: '+d.mode;
+  if(d.error){document.getElementById('rows').textContent=String(d.error);return}
+  document.getElementById('mode').textContent='Data source: '+esc(d.mode);
   const sum=k=>d.rows.reduce((s,r)=>s+r[k],0);
   document.getElementById('totals').innerHTML=[['Owed to shelters',gbp(sum('owed'))],['Paid out',gbp(sum('settled'))],['In flight',gbp(sum('inFlight'))],['Need attention',d.rows.filter(r=>r.status!=='RECONCILED').length+' of '+d.rows.length]]
     .map(([l,v])=>`<div class="stat"><b>${v}</b><span>${l}</span></div>`).join('');
   document.getElementById('rows').innerHTML=d.rows.map(r=>`<div class="card">
-   <div class="head"><h3 style="margin:0">${r.shelter}</h3><span class="pill ${r.status==='RECONCILED'?'ok':'bad'}">${r.status}</span></div>
+   <div class="head"><h3 style="margin:0">${esc(r.shelter)}</h3><span class="pill ${r.status==='RECONCILED'?'ok':'bad'}">${r.status}</span></div>
    <div class="nums"><span>Donations <b>${r.donations}</b></span><span>Owed <b>${gbp(r.owed)}</b></span><span>Paid <b>${gbp(r.settled)}</b></span><span>In flight <b>${gbp(r.inFlight)}</b></span><span>Shelter confirms <b>${gbp(r.acknowledged)}</b></span></div>
-   ${r.flags.length?'<ul>'+r.flags.map(f=>`<li><b>${f.code}</b>: ${f.detail}</li>`).join('')+'</ul>':''}
-   <div>${r.explanation.summary||''} <small>(${r.explanation.source})</small></div>
-   ${r.explanation.nextAction?`<div><b>Next:</b> ${r.explanation.nextAction}</div>`:''}
-   ${r.explanation.followUp?`<div class="draft">${r.explanation.followUp}</div>`:''}</div>`).join('');
+   ${r.flags.length?'<ul>'+r.flags.map(f=>`<li><b>${esc(f.code)}</b>: ${esc(f.detail)}</li>`).join('')+'</ul>':''}
+   <div>${esc(r.explanation.summary)} <small>(${esc(r.explanation.source)})</small></div>
+   ${r.explanation.nextAction?`<div><b>Next:</b> ${esc(r.explanation.nextAction)}</div>`:''}
+   ${r.explanation.followUp?`<div class="draft">${esc(r.explanation.followUp)}</div>`:''}</div>`).join('');
 }
 load();
 </script></body></html>
