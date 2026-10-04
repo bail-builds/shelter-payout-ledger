@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Shelter Payout Ledger</title>
+<style>
+:root{--bg:#f6f7f9;--card:#fff;--ink:#14213d;--mut:#667085;--ok:#18794e;--warn:#b54708;--line:#e4e7ec}
+*{box-sizing:border-box}body{margin:0;font:16px/1.5 system-ui,sans-serif;background:var(--bg);color:var(--ink)}
+header{padding:28px 20px 8px;max-width:960px;margin:auto}h1{margin:0;font-size:26px}p.sub{margin:4px 0 0;color:var(--mut)}
+main{max-width:960px;margin:auto;padding:12px 20px 48px;display:grid;gap:14px}
+.totals{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+.stat{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px}.stat b{display:block;font-size:22px}.stat span{color:var(--mut);font-size:13px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px}
+.head{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+.pill{font-size:12px;font-weight:600;padding:3px 10px;border-radius:99px}.ok{background:#d1fadf;color:var(--ok)}.bad{background:#fef0c7;color:var(--warn)}
+.nums{display:flex;gap:18px;flex-wrap:wrap;color:var(--mut);font-size:14px;margin:8px 0}.nums b{color:var(--ink)}
+ul{margin:6px 0;padding-left:18px}.draft{white-space:pre-wrap;background:#f9fafb;border:1px dashed var(--line);border-radius:8px;padding:10px;font-size:14px;margin-top:8px}
+small{color:var(--mut)}button{background:var(--ink);color:#fff;border:0;border-radius:8px;padding:8px 14px;font-size:14px;cursor:pointer}
+</style></head><body>
+<header><h1>Shelter Payout Ledger</h1><p class="sub">Donations in, payouts out, shelter receipts checked. <small id="mode"></small></p></header>
+<main><div class="totals" id="totals"></div><div id="rows">Loading...</div><div><button onclick="load()">Re-run reconciliation</button></div></main>
+<script>
+const gbp=n=>'£'+Number(n).toFixed(2);
+async function load(){
+  document.getElementById('rows').textContent='Reconciling...';
+  const d=await (await fetch('/api/reconcile')).json();
+  if(d.error){document.getElementById('rows').textContent=d.error;return}
+  document.getElementById('mode').textContent='Data source: '+d.mode;
+  const sum=k=>d.rows.reduce((s,r)=>s+r[k],0);
+  document.getElementById('totals').innerHTML=[['Owed to shelters',gbp(sum('owed'))],['Paid out',gbp(sum('settled'))],['In flight',gbp(sum('inFlight'))],['Need attention',d.rows.filter(r=>r.status!=='RECONCILED').length+' of '+d.rows.length]]
+    .map(([l,v])=>`<div class="stat"><b>${v}</b><span>${l}</span></div>`).join('');
+  document.getElementById('rows').innerHTML=d.rows.map(r=>`<div class="card">
+   <div class="head"><h3 style="margin:0">${r.shelter}</h3><span class="pill ${r.status==='RECONCILED'?'ok':'bad'}">${r.status}</span></div>
+   <div class="nums"><span>Donations <b>${r.donations}</b></span><span>Owed <b>${gbp(r.owed)}</b></span><span>Paid <b>${gbp(r.settled)}</b></span><span>In flight <b>${gbp(r.inFlight)}</b></span><span>Shelter confirms <b>${gbp(r.acknowledged)}</b></span></div>
+   ${r.flags.length?'<ul>'+r.flags.map(f=>`<li><b>${f.code}</b>: ${f.detail}</li>`).join('')+'</ul>':''}
+   <div>${r.explanation.summary||''} <small>(${r.explanation.source})</small></div>
+   ${r.explanation.nextAction?`<div><b>Next:</b> ${r.explanation.nextAction}</div>`:''}
+   ${r.explanation.followUp?`<div class="draft">${r.explanation.followUp}</div>`:''}</div>`).join('');
+}
+load();
+</script></body></html>

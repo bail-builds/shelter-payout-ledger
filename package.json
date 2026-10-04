@@ -1,0 +1,13 @@
+{
+  "name": "shelter-payout-ledger",
+  "version": "0.1.0",
+  "description": "AI agent that reconciles PayPal donation payouts to animal shelters against their receipts.",
+  "license": "MIT",
+  "type": "module",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "start": "node src/server.js",
+    "demo:mock": "node src/cli.js reconcile --mock",
+    "test": "node --test test/*.test.js"
+  }
+}
