@@ -50,6 +50,7 @@ test('full pipeline against the mock', async () => {
   delete process.env.LLM_API_KEY;
   const out = await runPipeline({ mock: true });
   assert.equal(out.rows.length, 3);
+  assert.equal(out.donations.length, 7);
   assert.ok(out.rows.find((r) => r.shelter === 'BARK-BOHOL').flags.some((f) => f.code === 'RECEIPT_MISMATCH'));
 });
 

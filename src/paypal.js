@@ -27,11 +27,11 @@ export class PayPal {
     return this.token;
   }
 
-  async call(method, path, body) {
+  async call(method, path, body, headers = {}) {
     const token = await this.auth();
     const res = await fetch(`${this.baseUrl}${path}`, {
       method,
-      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', ...headers },
       body: body ? JSON.stringify(body) : undefined,
     });
     const text = await res.text();
@@ -39,41 +39,32 @@ export class PayPal {
     return text ? JSON.parse(text) : {};
   }
 
-  // Donation intake: Orders v2. custom_id carries the shelter code.
-  createDonationOrder({ amount, currency = 'GBP', shelterCode, donor }) {
-    return this.call('POST', '/v2/checkout/orders', {
+  // Donation intake: Orders v2, captured in one call with PayPal's sandbox test card.
+  // custom_id carries the shelter code so every donation is traceable to a shelter.
+  async createDonation({ amount, currency = 'USD', shelterCode, donor = 'Test Donor' }) {
+    const order = await this.call('POST', '/v2/checkout/orders', {
       intent: 'CAPTURE',
       purchase_units: [{
         custom_id: shelterCode,
-        description: `Donation for ${shelterCode}${donor ? ` from ${donor}` : ''}`,
+        description: `Donation for ${shelterCode}`,
         amount: { currency_code: currency, value: Number(amount).toFixed(2) },
       }],
-    });
+      payment_source: { card: { number: '4111111111111111', expiry: '2030-12', security_code: '123', name: donor } },
+    }, { 'PayPal-Request-Id': `donation-${shelterCode}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}` });
+    return parseDonation(order);
   }
 
-  // Money in: captured donations, via the Transaction Search (reporting) API.
-  async listDonations({ start, end }) {
-    const q = new URLSearchParams({ start_date: start, end_date: end, fields: 'all', page_size: '100' });
-    const j = await this.call('GET', `/v1/reporting/transactions?${q}`);
-    return (j.transaction_details || [])
-      .filter((t) => t.transaction_info?.transaction_event_code?.startsWith('T00') && t.transaction_info?.custom_field)
-      .map((t) => {
-        const i = t.transaction_info;
-        const gross = Number(i.transaction_amount.value);
-        const fee = Math.abs(Number(i.fee_amount?.value || 0));
-        return {
-          id: i.transaction_id,
-          date: i.transaction_initiation_date,
-          donor: t.payer_info?.payer_name?.alternate_full_name || t.payer_info?.email_address || 'anonymous',
-          shelter: i.custom_field,
-          currency: i.transaction_amount.currency_code,
-          gross, fee, net: round2(gross - fee),
-        };
-      });
+  // Money in: read a captured donation back from PayPal (gross, PayPal fee, net).
+  async getDonation(orderId) {
+    return parseDonation(await this.call('GET', `/v2/checkout/orders/${orderId}`));
+  }
+
+  listDonations(orderIds) {
+    return Promise.all(orderIds.map((id) => this.getDonation(id)));
   }
 
   // Money out: Payouts API batch, one item per shelter.
-  createPayoutBatch({ batchId, items, currency = 'GBP' }) {
+  createPayoutBatch({ batchId, items, currency = 'USD' }) {
     return this.call('POST', '/v1/payments/payouts', {
       sender_batch_header: { sender_batch_id: batchId, email_subject: 'Donation payout', email_message: 'Your donation payout' },
       items: items.map((it) => ({
@@ -97,6 +88,23 @@ export class PayPal {
       status: it.transaction_status,
     }));
   }
+}
+
+export function parseDonation(order) {
+  const unit = order.purchase_units?.[0] || {};
+  const cap = unit.payments?.captures?.[0];
+  const b = cap?.seller_receivable_breakdown;
+  const gross = Number(b?.gross_amount?.value ?? cap?.amount?.value ?? 0);
+  const fee = Number(b?.paypal_fee?.value ?? 0);
+  return {
+    id: order.id,
+    status: cap?.status || order.status,
+    date: cap?.create_time || order.create_time,
+    donor: order.payment_source?.card?.name || order.payer?.name?.given_name || 'anonymous',
+    shelter: unit.custom_id,
+    currency: cap?.amount?.currency_code || b?.gross_amount?.currency_code,
+    gross, fee, net: round2(gross - fee),
+  };
 }
 
 export const round2 = (n) => Math.round((n + Number.EPSILON) * 100) / 100;

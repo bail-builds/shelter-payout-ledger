@@ -23,7 +23,9 @@ export function reconcile({ donations, payouts, receipts }) {
     if (inFlight > 0) flags.push({ code: 'PAYOUT_NOT_SETTLED', detail: `${inFlight.toFixed(2)} still pending/unclaimed` });
     if (failed > 0) flags.push({ code: 'PAYOUT_FAILED', detail: `${failed.toFixed(2)} failed or returned` });
     if (settled > 0 && r.length === 0) flags.push({ code: 'NO_RECEIPT', detail: 'paid out but the shelter has not confirmed receipt' });
-    if (r.length > 0 && Math.abs(acknowledged - settled) > 0.005) {
+    if (r.length > 0 && settled === 0 && acknowledged > 0) {
+      flags.push({ code: 'RECEIPT_BEFORE_SETTLED', detail: `shelter says it received ${acknowledged.toFixed(2)} but PayPal does not show a settled payout yet` });
+    } else if (r.length > 0 && Math.abs(acknowledged - settled) > 0.005) {
       flags.push({ code: 'RECEIPT_MISMATCH', detail: `shelter says ${acknowledged.toFixed(2)}, ledger says ${settled.toFixed(2)} settled (diff ${round2(settled - acknowledged).toFixed(2)})` });
     }
     const ids = p.map((x) => x.itemId);

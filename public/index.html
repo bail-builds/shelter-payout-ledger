@@ -18,7 +18,7 @@ small{color:var(--mut)}button{background:var(--ink);color:#fff;border:0;border-r
 <header><h1>Shelter Payout Ledger</h1><p class="sub">Donations in, payouts out, shelter receipts checked. <small id="mode"></small></p></header>
 <main><div class="totals" id="totals"></div><div id="rows">Loading...</div><div><button onclick="load()">Re-run reconciliation</button></div></main>
 <script>
-const gbp=n=>'£'+Number(n).toFixed(2);
+const gbp=n=>'$'+Number(n).toFixed(2);
 async function load(){
   document.getElementById('rows').textContent='Reconciling...';
   const d=await (await fetch('/api/reconcile')).json();

@@ -47,11 +47,11 @@ export async function extractReceipt(email, knownShelters) {
 }
 
 export function regexReceipt(email, knownShelters) {
-  const amt = email.text.match(/(?:£|GBP\s*)?(\d+(?:\.\d{1,2})?)\s*(?:GBP|£)?/g)?.map((s) => Number(s.replace(/[^\d.]/g, ''))).filter((n) => n > 0) || [];
+  const amt = email.text.match(/(?:[£$]|GBP|USD)?\s*(\d+(?:\.\d{1,2})?)\s*(?:GBP|USD|[£$])?/g)?.map((s) => Number(s.replace(/[^\d.]/g, ''))).filter((n) => n > 0) || [];
   const hay = `${email.from} ${email.text}`.toUpperCase().replace(/[^A-Z]/g, '');
   const shelter = knownShelters.find((s) => hay.includes(s.replace(/[^A-Z]/g, '')))
     || knownShelters.find((s) => hay.includes(s.split('-')[0]));
-  return { shelter: shelter || null, amount: amt.length ? amt.sort((a, b) => b - a)[0] : null, currency: 'GBP', confident: false, source: 'fallback', from: email.from };
+  return { shelter: shelter || null, amount: amt.length ? amt.sort((a, b) => b - a)[0] : null, currency: 'USD', confident: false, source: 'fallback', from: email.from };
 }
 
 export async function explain(row) {

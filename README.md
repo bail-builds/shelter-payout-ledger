@@ -6,10 +6,10 @@ Built for the PayPal AI Hackathon. **PayPal sandbox only. No real money is ever 
 
 ## What it does
 
-1. **Money in:** reads captured donations from the PayPal Transaction Search API (`/v1/reporting/transactions`). Each donation carries the shelter code in `custom_id` (set when the order is created with the Orders v2 API).
+1. **Money in:** donations are PayPal Orders v2 orders captured in the sandbox (`POST /v2/checkout/orders`, sandbox test card). The shelter code travels in `custom_id`. The reconciler reads each order back (`GET /v2/checkout/orders/{id}`) to get gross, PayPal fee and net, so fees are accounted for.
 2. **Money out:** reads payout batches from the Payouts API (`/v1/payments/payouts/{batch_id}`), one item per shelter.
 3. **Shelter side:** the AI agent reads messy emails from shelters and pulls out which shelter said it received what amount.
-4. **Reconcile:** per shelter it works out owed vs settled vs in flight vs acknowledged and flags: `UNPAID`, `OVERPAID`, `PAYOUT_NOT_SETTLED`, `PAYOUT_FAILED`, `NO_RECEIPT`, `RECEIPT_MISMATCH`, `DUPLICATE_PAYOUT`.
+4. **Reconcile:** per shelter it works out owed vs settled vs in flight vs acknowledged and flags: `UNPAID`, `OVERPAID`, `PAYOUT_NOT_SETTLED`, `PAYOUT_FAILED`, `NO_RECEIPT`, `RECEIPT_MISMATCH`, `RECEIPT_BEFORE_SETTLED`, `DUPLICATE_PAYOUT`.
 5. **Explain:** for each exception the agent writes a short explanation, the next action, and a draft email to the shelter that asks only for what is needed.
 
 A small dashboard shows the result.
@@ -33,8 +33,9 @@ Create a Sandbox app at developer.paypal.com (Apps & Credentials, Sandbox), then
 ```bash
 export PAYPAL_CLIENT_ID=...
 export PAYPAL_CLIENT_SECRET=...
-export PAYOUT_BATCH_IDS=PAYOUT_BATCH_ID_1,PAYOUT_BATCH_ID_2   # batches to check
-npm start
+node src/seed.js        # creates sandbox donations + a payout batch, saves IDs to data/ledger.json
+node src/cli.js         # reconcile live sandbox data
+npm start               # dashboard on the live data
 ```
 
 `PAYPAL_BASE_URL` defaults to `https://api-m.sandbox.paypal.com`.
@@ -55,6 +56,8 @@ The model extracts structured receipts from free-text emails and writes the expl
 
 - `src/paypal.js` PayPal REST client (OAuth, Orders, Transaction Search, Payouts)
 - `src/mockPaypal.js` offline stand-in with the same endpoints
+- `src/seed.js` creates sandbox donations and a payout batch
+- `src/ledger.js` remembers the PayPal order and batch IDs
 - `src/reconcile.js` pure reconciliation logic
 - `src/agent.js` LLM extraction and explanations
 - `src/server.js`, `public/index.html` dashboard
