@@ -18,7 +18,9 @@ export async function runPipeline({ mock = false, start = '2026-10-01T00:00:00Z'
     const payouts = (await Promise.all(ids.map((id) => client.getPayoutBatch(id)))).flat();
     const known = [...new Set([...donations.map((d) => d.shelter), ...payouts.map((p) => p.shelter)])].sort();
     const emails = receiptsInput || (mock ? sampleReceipts : []);
-    const receipts = (await Promise.all(emails.map((e) => extractReceipt({ ...e }, known)))).filter((r) => r.shelter && r.amount != null);
+    const receipts = [];
+    for (const e of emails) receipts.push(await extractReceipt({ ...e }, known)); // sequential: friendly to rate limits
+    receipts.splice(0, receipts.length, ...receipts.filter((r) => r.shelter && r.amount != null));
     const rows = reconcile({ donations, payouts, receipts });
     for (const row of rows) row.explanation = await explain(row);
     return { generatedAt: new Date().toISOString(), donations, payouts, receipts, rows };

@@ -7,16 +7,21 @@
 const cfg = () => ({
   key: process.env.LLM_API_KEY,
   base: (process.env.LLM_BASE_URL || 'https://generativelanguage.googleapis.com/v1beta/openai').replace(/\/$/, ''),
-  model: process.env.LLM_MODEL || 'gemini-2.5-flash',
+  model: process.env.LLM_MODEL || 'gemini-3.5-flash',
 });
 
 async function chat(messages, { json = false } = {}) {
   const { key, base, model } = cfg();
-  const res = await fetch(`${base}/chat/completions`, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ model, messages, temperature: 0, ...(json ? { response_format: { type: 'json_object' } } : {}) }),
-  });
+  let res;
+  for (let attempt = 0; attempt < 4; attempt++) {
+    res = await fetch(`${base}/chat/completions`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model, messages, temperature: 0, ...(json ? { response_format: { type: 'json_object' } } : {}) }),
+    });
+    if (res.status !== 429 && res.status < 500) break;
+    await new Promise((r) => setTimeout(r, 4000 * 2 ** attempt)); // free tiers rate limit; back off and retry
+  }
   if (!res.ok) throw new Error(`LLM ${res.status}: ${(await res.text()).slice(0, 200)}`);
   const j = await res.json();
   return j.choices[0].message.content;
@@ -60,7 +65,7 @@ export async function explain(row) {
       const j = JSON.parse(out);
       return { summary: j.summary, nextAction: j.next_action, followUp: j.email_draft, source: 'llm' };
     } catch (e) {
-      /* fall back below */
+      console.warn("LLM explain failed, using fallback:", e.message);
     }
   }
   const first = row.flags[0];

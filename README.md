@@ -46,7 +46,7 @@ npm start
 ```bash
 export LLM_API_KEY=...
 export LLM_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai   # default
-export LLM_MODEL=gemini-2.5-flash                                              # default
+export LLM_MODEL=gemini-3.5-flash                                              # default
 ```
 
 The model extracts structured receipts from free-text emails and writes the explanations and follow-up drafts. It never does the arithmetic: the reconcile step is plain deterministic code (`src/reconcile.js`), so the numbers can be trusted and tested. Without a key the agent falls back to a regex reader and templates, and the output is labelled `fallback` so you can tell.
